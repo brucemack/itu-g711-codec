@@ -46,14 +46,16 @@ int16_t decode_ulaw(uint8_t c) {
     // 2s compliment format.
     if (s_bit)
         a = -a;
-    return a;
+    // The final shift is needed to convert from 14-bit PCM to 16-bit PCM
+    return a << 2;
 }
 
 uint8_t encode_ulaw(int16_t a) {
-    
-    bool neg = a < 0;
+    // Convert from 16-bit PCM to 14-bit PCM
+    a >>= 2;
     // If a is negative than all bits after the sign
     // bit are inverted. (13 bits)
+    bool neg = a < 0;
     if (neg)
         a ^= 0b1111111111111;
     a += 33;

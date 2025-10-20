@@ -4,17 +4,17 @@ run: prog
 prog: unit-tests.o codec.o
 	g++ -o prog unit-tests.o codec.o
 
-unit-tests.o: unit-tests.cpp
-	g++ -c unit-tests.cpp
+unit-tests.o: ../src/unit-tests.cpp  ../src/itu-g711-codec/codec.h
+	g++ -I../src -c ../src/unit-tests.cpp
 
-encode-cmd.o: encode-cmd.cpp
-	g++ -c encode-cmd.cpp
+encode-cmd.o: ../src/encode-cmd.cpp  ../src/itu-g711-codec/codec.h
+	g++ -I../src -c ../src/encode-cmd.cpp
 
-deecode-cmd.o: decode-cmd.cpp
-	g++ -c decode-cmd.cpp
+deecode-cmd.o: ../src/decode-cmd.cpp  ../src/itu-g711-codec/codec.h
+	g++ -I../src -c ../src/decode-cmd.cpp
 
-codec.o: codec.cpp
-	g++ -c codec.cpp
+codec.o: ../src/codec.cpp ../src/itu-g711-codec/codec.h
+	g++ -I../src -c ../src/codec.cpp
 
 encode: encode-cmd.o codec.o
 	g++ -o encode encode-cmd.o codec.o

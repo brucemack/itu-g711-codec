@@ -27,9 +27,9 @@ namespace kc1fsz {
 /**
  * G.771 uLaw Encoder Function
  * 
- * @param a Is a 14-bit signed audio sample represented
- * as a 16-bit integer. The significant digits are on 
- * the low side of the 16-bit argument.
+ * @param a Is a 16-bit signed PCM audio sample. Range is -32K 
+ * to +32K. The encoder only looks at the high 14 bits of the 
+ * value so keep dynamic range in mind. 
  * @returns The 8-bit character signal.
  */
 uint8_t encode_ulaw(int16_t a);
@@ -38,13 +38,11 @@ uint8_t encode_ulaw(int16_t a);
  * G.771 uLaw Decoder Function
  * 
  * @param c The 8-bit character signal.
- * @returns A signed 14-bit PCM value represented 
- * as a signed 16-bit integer. The 14 bits of significance
- * are on the lower end, so the range of output is 
- * -8192 -> 8192.
+ * @returns A signed 16-bit PCM audio sample. The decoder result
+ * is ending up in the high 16 bits of the value so keep dynamic
+ * range in mind. Output range is -32K to +32K.
  */
 int16_t decode_ulaw(uint8_t c);
-
 
 }
 
