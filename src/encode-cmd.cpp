@@ -51,10 +51,15 @@ int main(int argc,const char** argv) {
     while (getline(infile, line)) {
         count++;
         int16_t a = stoi(line);
+        // The 16-bit value needs to be shifted down
+        // to a 14-bit value to be compatible with 
+        // the encoder.
+        a = a >> 2;
         outfile << encode_ulaw(a);
     }
 
-    cout << "Samples: " << count << endl;
+    cout << "Writing to: " << argv[2] << endl;
+    cout << "Samples:    " << count << endl;
 
     return 0;
 }

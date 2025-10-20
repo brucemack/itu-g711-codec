@@ -49,11 +49,15 @@ int main(int argc,const char** argv) {
         infile.read(&b, 1);
         if (infile.eof())
             break;
-        outfile << decode_ulaw((uint8_t)b) << endl;
+        // The 14-bit PCM value needs to be shifted
+        // up to 16-bit for compatibility.
+        int16_t a = decode_ulaw((uint8_t)b) << 2;
+        outfile << a << endl;
         count++;
     }
 
-    cout << "Samples: " << count << endl;
+    cout << "Writing to: " << argv[2] << endl;
+    cout << "Samples   : " << count << endl;
 
     return 0;
 }
