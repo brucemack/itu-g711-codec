@@ -15,9 +15,13 @@ Tables 2a and 2b are relevant.
 
 The <<2 is needed because the test cases are all stated in terms of 14-bit PCM 
 values whereas the functions assume 16-bit PCM values.
+
+16-bit PCM values should range from -32,767 to +32,767
+14-bit PCM values should range from -8,192 to +8,192
 */
 int main(int,const char**) {
 
+    assert(encode_ulaw(-8160 << 2) == 0b00000000);
     assert(encode_ulaw(-8159 << 2) == 0b00000000);
     assert(encode_ulaw(-8158 << 2) == 0b00000000);
     assert(encode_ulaw(-96 << 2)   == 0b01011111);
@@ -26,6 +30,9 @@ int main(int,const char**) {
     assert(encode_ulaw(1 << 2)     == 0b11111110);
     assert(encode_ulaw(8031 << 2)  == 0b10000000);
     assert(encode_ulaw(8158 << 2)  == 0b10000000);
+    // Beyond the range?
+    assert(encode_ulaw(8159 << 2)  == 0b10000000);
+    assert(encode_ulaw(8160 << 2)  == 0b10000000);
 
     assert(decode_ulaw(0b10000000) == 8031 << 2);
     assert(decode_ulaw(0b01111111) == 0 << 2);
