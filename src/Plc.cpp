@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <iostream>
 #include <numbers>
+#include <cassert>
+#include <cstring>
 
 #include "itu-g711-plc/Plc.h"
 
@@ -69,7 +71,8 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         // but a triangle could be used if there are efficiency 
         // concerns.
         const unsigned blendCoefLen = _frameLen - _outputLag; 
-        float blendCoef[blendCoefLen];
+        assert(blendCoefLen == 80 - 30);
+        float blendCoef[50];
         for (unsigned j = 0; j < fadeLen; j++) {
             float frac = (float)j / (float)fadeLen;
             // Set the phase so that we go through a half cycle in 
@@ -187,10 +190,10 @@ void Plc::_computePitchPeriod() {
 
     float energy = 0;
     float corr = 0;
-    float bestCorr = 0;
-    unsigned bestOffset = 0;
     unsigned tapOffsetLow = pitchPeriodMin;
     unsigned tapOffsetHigh = pitchPeriodMax;
+    float bestCorr = 0;
+    unsigned bestOffset = tapOffsetHigh;
     unsigned step = 2;
 
     // #### TODO: Look into fixed point
@@ -224,7 +227,7 @@ void Plc::_computePitchPeriod() {
     tapOffsetHigh = std::min((int)bestOffset + 1, (int)pitchPeriodMax);
     step = 1;
     // We start from scratch since the step size is different
-    bestOffset = 0;
+    bestOffset = tapOffsetHigh;
     bestCorr = 0;
 
     for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
@@ -296,6 +299,7 @@ int16_t Plc::_getSyntheticSample() {
 
     // Move across the pitch buffer, wrapping as needed.
     if (++_pitchBufPtr == _pitchBufLen) {
+        assert(_pitchWavelen * _pitchWaveCount < _pitchBufLen);
         _pitchBufPtr = _pitchBufLen - _pitchWavelen * _pitchWaveCount;
     }
 

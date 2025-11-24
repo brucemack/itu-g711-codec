@@ -117,8 +117,7 @@ private:
     const float minPower = 250;
     // The pitch buffer is long enough for three complete cycles
     // at the lowest pitch frequency.
-    // ### TODO: CHECK THIS
-    static const unsigned _pitchBufLen = 3 * pitchPeriodMax;
+    static const unsigned _pitchBufLen = 390;
     int16_t _pitchBuf[_pitchBufLen];
     // Holds the blend curve that is used to transition between 
     // discontinuous signals. This buffer goes from 0.0->1.0 so
