@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "itu-g711-codec/codec.h"
+#include "itu-g711-plc/Plc.h"
 
 using namespace std;
 using namespace kc1fsz;
@@ -47,108 +48,8 @@ void test_1() {
 }
 
 void test_2() {
-
-    const float sampleRate = 8000;
-    const float secondsPerSample = 1.0 / sampleRate;
-    // A 10ms block at 8kHz
-    const unsigned blockSize = 80;
-    // The period of a 66 Hz pitch
-    const unsigned pitchPeriodMax = 120; 
-    // The period of a 200 Hz pitch
-    const unsigned pitchPeriodMin = 40; 
-    // The length of the correlation period used when searching for the pitch
-    const unsigned corrLen = 160;
-    const float minPower = 250;
-    // The number of taps at which the correlation will be computed when 
-    // looking for best fit.
-    const unsigned taps = pitchPeriodMax - pitchPeriodMin;
-    const unsigned pitchBufferLen = 3 * pitchPeriodMax;
-    int16_t pitchBuffer[pitchBufferLen];
-
-    // Fill the pitch buffer with test data
-    float f = 165;
-    float f2 = 100;
-    float omega = 2 * 3.14156 * f / sampleRate;
-    float omega2 = 2 * 3.14156 * f2 / sampleRate;
-    float phi = 0;
-    float phi2 = 0;
-    for (unsigned i = 0; i < pitchBufferLen; i++) {
-        pitchBuffer[i] = 0.5 * 32767.0f * std::cos(phi) + 0.0 * 32767.0f * std::cos(phi2);
-        phi += omega;
-        phi2 += omega2;
-    }
-
-    // Setup the anchor points for the correlation. p1 is the beginning
-    // of the newest 20ms block in the pitch buffer.
-    const unsigned p1 = pitchBufferLen - corrLen; 
-
-    float energy = 0;
-    float corr = 0;
-    float bestCorr = 0;
-    unsigned bestOffset = 0;
-    unsigned tapOffsetLow = pitchPeriodMin;
-    unsigned tapOffsetHigh = pitchPeriodMax;
-    unsigned step = 2;
-
-    // During the coarse search we test every other tap. The scan starts
-    // from the longest pitch period and ends at the highest pitch period.
-    for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
-        tapOffset -= step) {
-        energy = 0;
-        corr = 0;
-        unsigned p0 = pitchBufferLen - corrLen - tapOffset; 
-        for (unsigned i = 0; i < corrLen; i += step) {
-            int16_t s0 = pitchBuffer[p0 + i];
-            int16_t s1 = pitchBuffer[p1 + i];
-            energy += (float)s0 * (float)s0;
-            corr += (float)s0 * (float)s1;
-        }
-        float scale = std::max(energy, minPower);
-        corr = abs(corr / sqrt(scale));
-        //float tapSeconds = secondsPerSample *(float)tapOffset;
-        //float tapFreq = 1.0 / tapSeconds;
-        //cout << tapFreq << " " << corr << endl;
-        // Any better?
-        if (corr >= bestCorr) {
-            bestCorr = corr;
-            bestOffset = tapOffset;
-        }
-    }
-
-    // Fine tuning does exactly the same thing, but just focuses on three taps 
-    // around the best match from the coarse search.
-    tapOffsetLow = std::max((int)bestOffset - 1, (int)pitchPeriodMin);
-    tapOffsetHigh = std::min((int)bestOffset + 1, (int)pitchPeriodMax);
-    step = 1;
-    // We start from scratch since the step size is different
-    bestOffset = 0;
-    bestCorr = 0;
-
-    for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
-        tapOffset -= step) {
-        energy = 0;
-        corr = 0;
-        unsigned p0 = pitchBufferLen - corrLen - tapOffset; 
-        for (unsigned i = 0; i < corrLen; i += step) {
-            int16_t s0 = pitchBuffer[p0 + i];
-            int16_t s1 = pitchBuffer[p1 + i];
-            energy += (float)s0 * (float)s0;
-            corr += (float)s0 * (float)s1;
-        }
-        float scale = std::max(energy, minPower);
-        corr = abs(corr / sqrt(scale));
-        if (corr >= bestCorr) {
-            bestCorr = corr;
-            bestOffset = tapOffset;
-        }
-    }
-
-    // Convert offset to frequency
-    float bestSeconds = secondsPerSample * (float)bestOffset;
-    cout << "bestOffset " << bestOffset << endl;
-    cout << "bestFreq " << 1.0 / bestSeconds << endl;
-    cout << "bestCorr " << bestCorr << endl;
-
+    Plc plc;
+    plc.test();
 }
 
 int main(int,const char**) {

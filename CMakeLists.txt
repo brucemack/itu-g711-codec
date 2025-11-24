@@ -7,6 +7,7 @@ file(MAKE_DIRECTORY tmp)
 add_executable(unit-test
   src/tests/unit-tests.cpp
   src/codec.cpp
+  src/Plc.cpp
 )
 
 target_include_directories(unit-test PRIVATE src)
