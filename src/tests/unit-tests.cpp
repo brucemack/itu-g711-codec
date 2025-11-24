@@ -53,13 +53,13 @@ void test_2() {
 
     // Fill the pitch buffer with test data
     float sampleRate = 8000;
-    float f = 165;
+    float f = 85;
     float f2 = 100;
     float omega = 2 * 3.14156 * f / sampleRate;
     float omega2 = 2 * 3.14156 * f2 / sampleRate;
     float phi = 0;
     float phi2 = 0;
-    unsigned frameCount = 7;
+    unsigned frameCount = 9;
     const unsigned frameLen = 80;
     int16_t frame[frameLen];
     int16_t outFrame[frameLen];
@@ -71,6 +71,9 @@ void test_2() {
             phi2 += omega2;
         }
         if (j == 4 || j == 5) {
+            // We do this for charting purposes only
+            for (unsigned i = 0; i < frameLen; i++)
+                frame[i] = 0;
             plc.badFrame(outFrame, frameLen);
         }
         else {
@@ -79,7 +82,8 @@ void test_2() {
         // Debug (after the first)
         if (j > 0) {
             for (unsigned i = 0; i < frameLen; i++) 
-                cout << outFrame[i] << endl;
+                cout << outFrame[i] << "\t" << frame[i] << endl;
+                //cout << outFrame[i] << endl;
         }
     }
 }

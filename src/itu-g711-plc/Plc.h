@@ -21,6 +21,13 @@
 
 namespace kc1fsz {
 
+/**
+ * Performs audio packet loss concealment using the ITU G.711 Appendix I
+ * method. 
+ * 
+ * At the present time this implementation assumes 16 bit signed
+ * PCM, 8kHz sample rate, and 10ms frame size.
+ */
 class Plc {
 public:
 
@@ -28,9 +35,10 @@ public:
 
     /**
      * Call this each time a good frame of audio is received.
+     * 
      * @param inFrame The input PCM data
      * @param outFrame The output PCM data
-     * @param frameLen 
+     * @param frameLen Must be 80 at the moment. 
      */
     void goodFrame(const int16_t* inFrame, int16_t* outFrame, 
         unsigned frameLen);
@@ -38,33 +46,52 @@ public:
     /**
      * Call this each time a frame is missed. Output will still
      * be provided using the relevant PLC algorithm.
+     * 
+     * @param frameLen Must be 80 at the moment. 
      */
     void badFrame(int16_t* outFrame, 
         unsigned frameLen);
 
-    void test();
+    /**
+     * Diagnostic, returns current pitch wavelength as estimated
+     * at the start of the last erasure.
+     */
+    unsigned getPitchWavelength() const;
+
+    /**
+     * Returns to initial state.
+     */
+    void reset();
 
 private:
 
+    /**
+     * Should be called immediately when an erasure (missed block)
+     * is detected. This examines the recent history and computes
+     * the pitch period that will be used for synthesis later.
+     */
     void _computePitchPeriod();
 
     /**
-     * @returns An interpolated sample from the pitch buffer, taking 
-     * into account all of the rules related to erasure count, etc.
+     * @returns An interpolated sample from the pitch buffer, including
+     * the logic for smoothing the wrap-around at the end of the 
+     * buffer.
+     * 
      * This has the side-effect of moving the pitch buffer pointer
      * forward so only call it once per cycle.
-     * 
-     * This function includes the logic to blend the wrap-around
-     * discontinuity.
      */
-    int16_t _getPitchBufSample();
+    int16_t _getSyntheticSample();
 
+    // The number of consecutive missing frames seen
     unsigned _erasureCount = 0;
+
+    // Used for creating the down ramp during synthesis.
+    float _attenuationRamp = 1.0;
+    float _attenuationRampDelta = 0.0;
 
     // History is 48.75 ms
     static const unsigned _histBufLen = 390;
     int16_t _histBuf[_histBufLen];
-    const unsigned _outputLag = (pitchPeriodMax / 4);
 
     unsigned _pitchBufPtr = 0;
     // These are set by the pitch determination function
@@ -82,6 +109,9 @@ private:
     static const unsigned pitchPeriodMax = 120; 
     // The period of a 200 Hz pitch
     const unsigned pitchPeriodMin = 40; 
+    // The fixed delay in the system as a result of the lag
+    // between input and output.
+    const unsigned _outputLag = (pitchPeriodMax / 4);
     // The length of the correlation period used when searching for the pitch
     const unsigned corrLen = 160;
     const float minPower = 250;

@@ -27,8 +27,7 @@ using namespace std;
 namespace kc1fsz {
 
 Plc::Plc() {
-    memset(_histBuf, 0, sizeof(_histBuf));
-    memset(_pitchBuf, 0, sizeof(_pitchBuf));
+    reset();
 }
 
 void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame, 
@@ -46,8 +45,16 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         // For the lag period, keep flowing the synthetic data 
         // (need to catch up to the new frame).
         unsigned i = 0;
-        for (; i < _outputLag; i++)
-            outFrame[i] = _getPitchBufSample();
+        for (; i < _outputLag; i++) {
+            int16_t s = _getSyntheticSample();
+            outFrame[i] = s;
+            // We also plug the synthetic value into the history 
+            // buffer in the place that it would have come from
+            // if everything was going well. This may be used 
+            // if we quickly switch back into an erasure
+            _histBuf[_histBufLen - _frameLen - _outputLag + i] = s;
+        }
+
         // After the lag period we fade from the synthetic data
         // over the real data. The length of this period is 1/4
         // wavelength for the first 10m erasure and 4ms (32 samples)
@@ -71,14 +78,20 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
             assert(j < blendCoefLen);
             blendCoef[j] = 0.5f - 0.5f * std::cos(phi);
         }
-
+        
         // Build the blend during the fade period
-        for (unsigned f = 0; f < fadeLen; f++) {
+        for (unsigned f = 0; f < fadeLen; f++, i++) {
             float s0FadedOut = 
-                (float)_getPitchBufSample() * (1.0 - blendCoef[f]);
+                (float)_getSyntheticSample() * (1.0 - blendCoef[f]);
             float s1FadedIn = (float)_histBuf[_histBufLen - _frameLen - 
                 _outputLag + i] * blendCoef[f];
-            outFrame[i++] = s0FadedOut + s1FadedIn;
+            int16_t s = s0FadedOut + s1FadedIn;
+            outFrame[i] = s;
+            // We also plug the synthetic value into the history 
+            // buffer in the place that it would have come from
+            // if everything was going well. This may be used 
+            // if we quickly switch back into an erasure
+            _histBuf[_histBufLen - _frameLen - _outputLag + i] = s;
         }
 
         // And anything left is just handled the normal way.
@@ -105,29 +118,29 @@ void Plc::badFrame(int16_t* outFrame,
     // In this a transition into an erasure? If so, capture the 
     // most recent history into the pitch buffer and prepare for
     // synthesis
-    if (_erasureCount == 01) {
+    if (_erasureCount == 1) {
         // Move latest history into the pitch buffer
         memcpy(_pitchBuf, _histBuf + _histBufLen - _pitchBufLen,
             sizeof(int16_t) * _pitchBufLen);
         _computePitchPeriod();
-        //cout << "Switching to synthesis with wavelengths " 
-        //    << _pitchWaveCount << endl;
+        _attenuationRamp = 1.0;
+        _attenuationRampDelta = 0;
     } 
     else if (_erasureCount == 2) {
         // We change the number of wavelengths but the 
         // pointer (phase) is unchanged to avoid any
         // discontinuity.
         _pitchWaveCount = 2;
-        //cout << "Switching to synthesis with wavelengths " 
-        //    << _pitchWaveCount << endl;
+        // Once we hit the second erasure we turn on the attenuation.
+        // The specification requires 20% per 10ms, so that means
+        // 0.2 for every frame or 0.2 / 80 = 0.0025 for every sample.
+        _attenuationRampDelta = -0.2 / (float)_frameLen;
     }
     else if (_erasureCount == 3) {
         // We change the number of wavelengths but the 
         // pointer (phase) is unchanged to avoid any
         // discontinuity.
         _pitchWaveCount = 3;
-        //cout << "Switching to synthesis with wavelengths " 
-        //    << _pitchWaveCount << endl;
     }
 
     // NOTE: There is no further update the wavelength count
@@ -138,30 +151,32 @@ void Plc::badFrame(int16_t* outFrame,
         sizeof(int16_t) * (_histBufLen - _frameLen));
 
     // Populate output with interpolated data
-    for (unsigned i = 0; i < _frameLen; i++)
-        outFrame[i] = _getPitchBufSample();
+    for (unsigned i = 0; i < _frameLen; i++) {
+        int16_t s = _getSyntheticSample();
+        outFrame[i] = s;
+        // We also plug the synthetic value into the history 
+        // buffer in the place that it would have come from
+        // if everything was going well. This may be used 
+        // if we quickly switch back into an erasure.
+        _histBuf[_histBufLen - _frameLen - _outputLag + i] = s;
+    }
 }
 
-void Plc::test() {
+unsigned Plc::getPitchWavelength() const {
+    return _pitchWavelen;
+}
 
-    // Fill the pitch buffer with test data
-    float f = 165;
-    float f2 = 100;
-    float omega = 2 * 3.14156 * f / sampleRate;
-    float omega2 = 2 * 3.14156 * f2 / sampleRate;
-    float phi = 0;
-    float phi2 = 0;
-    for (unsigned i = 0; i < _pitchBufLen; i++) {
-        _pitchBuf[i] = 0.5 * 32767.0f * std::cos(phi) + 0.0 * 32767.0f * std::cos(phi2);
-        phi += omega;
-        phi2 += omega2;
-    }
-
-    _computePitchPeriod();
-
-    // Cycle through a few times 
-    for (unsigned i = 0; i < _pitchBufLen; i++)     
-        cout << _getPitchBufSample() << endl;
+void Plc::reset() {
+    memset(_histBuf, 0, sizeof(_histBuf));
+    memset(_pitchBuf, 0, sizeof(_pitchBuf));
+    memset(_blendCoef, 0, sizeof(_blendCoef));
+    _pitchWavelen = 0;
+    _erasureCount = 0;
+    _attenuationRamp = 1.0;
+    _attenuationRampDelta = 0.0;
+    _pitchBufPtr = 0;
+    _quarterPitchWavelen = 0;
+    _pitchWaveCount = 1;
 }
 
 void Plc::_computePitchPeriod() {
@@ -195,13 +210,14 @@ void Plc::_computePitchPeriod() {
         }
         float scale = std::max(energy, minPower);
         corr = abs(corr / sqrt(scale));
+
         // Any better?
-        if (corr >= bestCorr) {
+        if (corr > bestCorr) {
             bestCorr = corr;
             bestOffset = tapOffset;
         }
     }
-
+    
     // Fine tuning does exactly the same thing, but just focuses on three taps 
     // around the best match from the coarse search.
     tapOffsetLow = std::max((int)bestOffset - 1, (int)pitchPeriodMin);
@@ -230,9 +246,12 @@ void Plc::_computePitchPeriod() {
             bestOffset = tapOffset;
         }
     }
-
+    
     _pitchWavelen = bestOffset;
     _quarterPitchWavelen = _pitchWavelen / 4;
+
+    // Convert 
+    //cout << "Freq " << 8000.0 / (float)_pitchWavelen << endl;
 
     // Start the pitch buffer pointer with the usual lag to avoid
     // a discontinuity when switching to synthesized audio. The
@@ -255,12 +274,11 @@ void Plc::_computePitchPeriod() {
     }
 }
 
-int16_t Plc::_getPitchBufSample() {
+int16_t Plc::_getSyntheticSample() {
+
     assert(_pitchBufPtr < _pitchBufLen);
     assert(_pitchWavelen * _pitchWaveCount <= _pitchBufLen);
-    assert(_pitchWavelen * _pitchWaveCount <= _pitchBufPtr);
     int16_t s0 = _pitchBuf[_pitchBufPtr]; 
-    int16_t s1 = _pitchBuf[_pitchBufPtr - (_pitchWavelen * _pitchWaveCount)];
     int16_t s0FadedOut = s0;
     int16_t s1FadedIn = 0;
 
@@ -268,6 +286,8 @@ int16_t Plc::_getPitchBufSample() {
     // to wrap around to the start of the buffer so we want to 
     // fade out the end of the buffer and fade in the start.
     if (_pitchBufPtr >= _pitchBufLen - _quarterPitchWavelen) {
+        assert(_pitchWavelen * _pitchWaveCount <= _pitchBufPtr);
+        int16_t s1 = _pitchBuf[_pitchBufPtr - (_pitchWavelen * _pitchWaveCount)];
         unsigned blendPtr = _pitchBufPtr - (_pitchBufLen - _quarterPitchWavelen);
         assert(blendPtr < _quarterPitchWavelen);
         s0FadedOut = (float)s0 * (1.0 - _blendCoef[blendPtr]);
@@ -279,7 +299,15 @@ int16_t Plc::_getPitchBufSample() {
         _pitchBufPtr = _pitchBufLen - _pitchWavelen * _pitchWaveCount;
     }
 
-    return s0FadedOut + s1FadedIn;
+    // Apply the attenuation
+    float result = (s0FadedOut + s1FadedIn) * _attenuationRamp;
+    _attenuationRamp += _attenuationRampDelta;
+    if (_attenuationRamp < 0)
+        _attenuationRamp = 0;
+    if (_attenuationRamp > 1.0)
+        _attenuationRamp = 1.0;
+
+    return result;
 }
 
 }
