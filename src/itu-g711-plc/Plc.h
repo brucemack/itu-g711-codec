@@ -30,9 +30,24 @@ private:
 
     void _computePitchPeriod();
 
+    /**
+     * @returns An interpolated sample from the pitch buffer, taking 
+     * into account all of the rules related to erasure count, etc.
+     * This has the side-effect of moving the pitch buffer pointer
+     * forward so only call it once per cycle.
+     * 
+     * This function includes the logic to blend the wrap-around
+     * discontinuity.
+     */
+    int16_t _getPitchBufSample();
+
     unsigned _pitchBufPtr = 0;
-    unsigned _pitchPeriod = 0;
-    unsigned _quarterPitchPeriod = 0;
+    // These are set by the pitch determination function
+    unsigned _pitchWavelen = 0;
+    unsigned _quarterPitchWavelen = 0;
+    // The number of wavelengths in the synthesis. This depends 
+    // on how many erasures have happened so far.
+    unsigned _pitchWaveCount = 1;
 
     const float sampleRate = 8000;
     const float secondsPerSample = 1.0 / sampleRate;
@@ -53,7 +68,7 @@ private:
     // Holds the blend curve that is used to transition between 
     // discontinuous signals. This buffer goes from 0.0->1.0 so
     // you may need subtract it from 1.0 to produce the ramp-down.
-    int16_t _blendCoef[pitchPeriodMax / 4];
+    float _blendCoef[pitchPeriodMax / 4];
 };
 
 }

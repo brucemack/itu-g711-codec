@@ -42,6 +42,10 @@ void Plc::test() {
     }
 
     _computePitchPeriod();
+
+    // Cycle through a few times 
+    for (unsigned i = 0; i < _pitchBufLen; i++)     
+        cout << _getPitchBufSample() << endl;
 }
 
 void Plc::_computePitchPeriod() {
@@ -58,6 +62,8 @@ void Plc::_computePitchPeriod() {
     unsigned tapOffsetHigh = pitchPeriodMax;
     unsigned step = 2;
 
+    // #### TODO: Look into fixed point
+
     // During the coarse search we test every other tap. The scan starts
     // from the longest pitch period and ends at the highest pitch period.
     for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
@@ -73,9 +79,6 @@ void Plc::_computePitchPeriod() {
         }
         float scale = std::max(energy, minPower);
         corr = abs(corr / sqrt(scale));
-        //float tapSeconds = secondsPerSample *(float)tapOffset;
-        //float tapFreq = 1.0 / tapSeconds;
-        //cout << tapFreq << " " << corr << endl;
         // Any better?
         if (corr >= bestCorr) {
             bestCorr = corr;
@@ -105,31 +108,56 @@ void Plc::_computePitchPeriod() {
         }
         float scale = std::max(energy, minPower);
         corr = abs(corr / sqrt(scale));
+        // Any better?
         if (corr >= bestCorr) {
             bestCorr = corr;
             bestOffset = tapOffset;
         }
     }
 
-    _pitchPeriod = bestOffset;
-    _quarterPitchPeriod = _pitchPeriod / 4;
+    _pitchWavelen = bestOffset;
+    _quarterPitchWavelen = _pitchWavelen / 4;
 
-    // Fill the blend coefficient buffer. Here we are using 
-    // a Hanning window function to minimize the spectral impact
-    // of the blend.
-    for (unsigned i = 0; i < _quarterPitchPeriod; i++) {
+    // Start the pitch buffer pointer 1/4 wavelength from the end
+    _pitchBufPtr = _pitchBufLen - _quarterPitchWavelen;
+
+    // Fill the blend coefficient buffer based on the new wavelength. 
+    // Here we are using a Hanning window function to minimize the 
+    // spectral impact of the blend.
+    for (unsigned i = 0; i < _quarterPitchWavelen; i++) {
+        float frac = (float)i / (float)_quarterPitchWavelen;
         // Set the phase so that we go through a half cycle in 
         // a quarter pitch period.
-        float phi = std::numbers::pi * (float)i / 
-            (float)_quarterPitchPeriod; 
+        float phi = std::numbers::pi * frac;
         _blendCoef[i] = 0.5f - 0.5f * std::cos(phi);
     }
+}
 
-    // Convert offset to frequency
-    //float bestSeconds = secondsPerSample * (float)bestOffset;
-    //cout << "bestOffset " << bestOffset << endl;
-    //cout << "bestFreq " << 1.0 / bestSeconds << endl;
-    //cout << "bestCorr " << bestCorr << endl;
+int16_t Plc::_getPitchBufSample() {
+    assert(_pitchBufPtr < _pitchBufLen);
+    assert(_pitchWavelen * _pitchWaveCount <= _pitchBufLen);
+    assert(_pitchWavelen * _pitchWaveCount <= _pitchBufPtr);
+    int16_t s0 = _pitchBuf[_pitchBufPtr]; 
+    int16_t s1 = _pitchBuf[_pitchBufPtr - (_pitchWavelen * _pitchWaveCount)];
+    int16_t s0FadedOut = s0;
+    int16_t s1FadedIn = 0;
+
+    // Inside of the 1/4 wavelength transition period we are preparing
+    // to wrap around to the start of the buffer so we want to 
+    // fade out the end of the buffer and fade in the start.
+    if (_pitchBufPtr >= _pitchBufLen - _quarterPitchWavelen) {
+        unsigned blendPtr = _pitchBufPtr - (_pitchBufLen - _quarterPitchWavelen);
+        assert(blendPtr < _quarterPitchWavelen);
+        s0FadedOut = (float)s0 * (1.0 - _blendCoef[blendPtr]);
+        s1FadedIn = (float)s1 * _blendCoef[blendPtr];
+    }
+
+    // Move across the pitch buffer, wrapping as needed.
+    if (++_pitchBufPtr == _pitchBufLen) {
+        _pitchBufPtr = _pitchBufLen - _pitchWavelen * _pitchWaveCount;
+    }
+
+    return s0FadedOut + s1FadedIn;
 }
 
 }
