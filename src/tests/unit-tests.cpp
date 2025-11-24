@@ -48,8 +48,40 @@ void test_1() {
 }
 
 void test_2() {
+    
     Plc plc;
-    plc.test();
+
+    // Fill the pitch buffer with test data
+    float sampleRate = 8000;
+    float f = 165;
+    float f2 = 100;
+    float omega = 2 * 3.14156 * f / sampleRate;
+    float omega2 = 2 * 3.14156 * f2 / sampleRate;
+    float phi = 0;
+    float phi2 = 0;
+    unsigned frameCount = 5;
+    const unsigned frameLen = 80;
+    int16_t frame[frameLen];
+    int16_t outFrame[frameLen];
+
+    for (unsigned j = 0; j < frameCount; j++) {
+        for (unsigned i = 0; i < frameLen; i++) {
+            frame[i] = 0.5 * 32767.0f * std::cos(phi) + 0.0 * 32767.0f * std::cos(phi2);
+            phi += omega;
+            phi2 += omega2;
+        }
+        if (j == 4) {
+            plc.badFrame(outFrame, frameLen);
+        }
+        else {
+            plc.goodFrame(frame, outFrame, frameLen);
+        }
+        // Debug (after the first)
+        if (j > 0) {
+            for (unsigned i = 0; i < frameLen; i++) 
+                cout << outFrame[i] << endl;
+        }
+    }
 }
 
 int main(int,const char**) {

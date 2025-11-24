@@ -26,6 +26,58 @@ using namespace std;
 
 namespace kc1fsz {
 
+Plc::Plc() {
+    memset(_histBuf, 0, sizeof(_histBuf));
+    memset(_pitchBuf, 0, sizeof(_pitchBuf));
+}
+
+void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame, 
+    unsigned frameLen) {
+
+    // Shift history left
+    memmove(_histBuf, _histBuf + _frameLen,  
+        sizeof(int16_t) * (_histBufLen - _frameLen));
+    // Fill in the newest block
+    memcpy(_histBuf + _histBufLen - _frameLen, inFrame, 
+        sizeof(int16_t) * _frameLen);
+
+    // Is this a transition out of an erasure?
+    if (_erasureCount) {
+    }
+    
+    // Populate output with lagged data
+    for (unsigned i = 0; i < _frameLen; i++)
+        outFrame[i] = _histBuf[_histBufLen - _frameLen - 
+            _outputLag + i];
+}
+
+void Plc::badFrame(int16_t* outFrame, 
+    unsigned frameLen) {
+
+    assert(frameLen == _frameLen);
+
+    // In this a transition into an erasure? If so, capture the 
+    // most recent history into the pitch buffer and prepare for
+    // synthesis
+    if (_erasureCount == 0) {
+        //cout << "Switching to synthesis" << endl;
+        // Move latest history into the pitch buffer
+        memcpy(_pitchBuf, _histBuf + _histBufLen - _pitchBufLen,
+            sizeof(int16_t) * _pitchBufLen);
+        _computePitchPeriod();
+    }
+
+    // Shift history left
+    memmove(_histBuf, _histBuf + _frameLen,  
+        sizeof(int16_t) * (_histBufLen - _frameLen));
+
+    _erasureCount++;
+
+    // Populate output with interpolated data
+    for (unsigned i = 0; i < _frameLen; i++)
+        outFrame[i] = _getPitchBufSample();
+}
+
 void Plc::test() {
 
     // Fill the pitch buffer with test data
@@ -118,8 +170,14 @@ void Plc::_computePitchPeriod() {
     _pitchWavelen = bestOffset;
     _quarterPitchWavelen = _pitchWavelen / 4;
 
-    // Start the pitch buffer pointer 1/4 wavelength from the end
-    _pitchBufPtr = _pitchBufLen - _quarterPitchWavelen;
+    // Start the pitch buffer pointer with the usual lag to avoid
+    // a discontinuity when switching to synthesized audio. The
+    // first few samples after the start of an erasure will be
+    // exactly what we would have had without the erasure. This
+    // will change once we enter the last 1/4 wavelength of the 
+    // pitch buffer and we start to transition into the repeating
+    // audio phase.
+    _pitchBufPtr = _pitchBufLen - _outputLag;
 
     // Fill the blend coefficient buffer based on the new wavelength. 
     // Here we are using a Hanning window function to minimize the 

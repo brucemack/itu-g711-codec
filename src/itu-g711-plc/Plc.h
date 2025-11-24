@@ -24,6 +24,24 @@ namespace kc1fsz {
 class Plc {
 public:
 
+    Plc();
+
+    /**
+     * Call this each time a good frame of audio is received.
+     * @param inFrame The input PCM data
+     * @param outFrame The output PCM data
+     * @param frameLen 
+     */
+    void goodFrame(const int16_t* inFrame, int16_t* outFrame, 
+        unsigned frameLen);
+
+    /**
+     * Call this each time a frame is missed. Output will still
+     * be provided using the relevant PLC algorithm.
+     */
+    void badFrame(int16_t* outFrame, 
+        unsigned frameLen);
+
     void test();
 
 private:
@@ -41,6 +59,13 @@ private:
      */
     int16_t _getPitchBufSample();
 
+    unsigned _erasureCount = 0;
+
+    // History is 48.75 ms
+    static const unsigned _histBufLen = 390;
+    int16_t _histBuf[_histBufLen];
+    const unsigned _outputLag = (pitchPeriodMax / 4);
+
     unsigned _pitchBufPtr = 0;
     // These are set by the pitch determination function
     unsigned _pitchWavelen = 0;
@@ -52,7 +77,7 @@ private:
     const float sampleRate = 8000;
     const float secondsPerSample = 1.0 / sampleRate;
     // A 10ms block at 8kHz
-    const unsigned blockSize = 80;
+    const unsigned _frameLen = 80;
     // The period of a 66 Hz pitch
     static const unsigned pitchPeriodMax = 120; 
     // The period of a 200 Hz pitch
