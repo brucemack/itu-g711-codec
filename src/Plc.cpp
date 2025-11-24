@@ -42,36 +42,100 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         sizeof(int16_t) * _frameLen);
 
     // Is this a transition out of an erasure?
-    if (_erasureCount) {
+    if (_erasureCount > 0) {
+        // For the lag period, keep flowing the synthetic data 
+        // (need to catch up to the new frame).
+        unsigned i = 0;
+        for (; i < _outputLag; i++)
+            outFrame[i] = _getPitchBufSample();
+        // After the lag period we fade from the synthetic data
+        // over the real data. The length of this period is 1/4
+        // wavelength for the first 10m erasure and 4ms (32 samples)
+        // for each subsequent erasure, not to exceed the length 
+        // of the frame.
+        unsigned fadeLen = _quarterPitchWavelen + 32 * (_erasureCount - 1);
+        // Make sure the fade doesn't extend past this frame. And
+        // remember that we've already used _outputLag from the frame.
+        fadeLen = std::min(fadeLen, _frameLen - _outputLag);
+
+        // Build the blend coefficients. Using a Hamming window here,
+        // but a triangle could be used if there are efficiency 
+        // concerns.
+        const unsigned blendCoefLen = _frameLen - _outputLag; 
+        float blendCoef[blendCoefLen];
+        for (unsigned j = 0; j < fadeLen; j++) {
+            float frac = (float)j / (float)fadeLen;
+            // Set the phase so that we go through a half cycle in 
+            // a quarter pitch period.
+            float phi = std::numbers::pi * frac;
+            assert(j < blendCoefLen);
+            blendCoef[j] = 0.5f - 0.5f * std::cos(phi);
+        }
+
+        // Build the blend during the fade period
+        for (unsigned f = 0; f < fadeLen; f++) {
+            float s0FadedOut = 
+                (float)_getPitchBufSample() * (1.0 - blendCoef[f]);
+            float s1FadedIn = (float)_histBuf[_histBufLen - _frameLen - 
+                _outputLag + i] * blendCoef[f];
+            outFrame[i++] = s0FadedOut + s1FadedIn;
+        }
+
+        // And anything left is just handled the normal way.
+        for (; i < _frameLen; i++)
+            outFrame[i] = _histBuf[_histBufLen - _frameLen - 
+                _outputLag + i];
+        _erasureCount = 0;
     }
-    
-    // Populate output with lagged data
-    for (unsigned i = 0; i < _frameLen; i++)
-        outFrame[i] = _histBuf[_histBufLen - _frameLen - 
-            _outputLag + i];
+    else {
+        // Populate output with lagged data
+        for (unsigned i = 0; i < _frameLen; i++)
+            outFrame[i] = _histBuf[_histBufLen - _frameLen - 
+                _outputLag + i];
+    }
 }
 
 void Plc::badFrame(int16_t* outFrame, 
     unsigned frameLen) {
 
     assert(frameLen == _frameLen);
+    
+    _erasureCount++;
 
     // In this a transition into an erasure? If so, capture the 
     // most recent history into the pitch buffer and prepare for
     // synthesis
-    if (_erasureCount == 0) {
-        //cout << "Switching to synthesis" << endl;
+    if (_erasureCount == 01) {
         // Move latest history into the pitch buffer
         memcpy(_pitchBuf, _histBuf + _histBufLen - _pitchBufLen,
             sizeof(int16_t) * _pitchBufLen);
         _computePitchPeriod();
+        //cout << "Switching to synthesis with wavelengths " 
+        //    << _pitchWaveCount << endl;
+    } 
+    else if (_erasureCount == 2) {
+        // We change the number of wavelengths but the 
+        // pointer (phase) is unchanged to avoid any
+        // discontinuity.
+        _pitchWaveCount = 2;
+        //cout << "Switching to synthesis with wavelengths " 
+        //    << _pitchWaveCount << endl;
     }
+    else if (_erasureCount == 3) {
+        // We change the number of wavelengths but the 
+        // pointer (phase) is unchanged to avoid any
+        // discontinuity.
+        _pitchWaveCount = 3;
+        //cout << "Switching to synthesis with wavelengths " 
+        //    << _pitchWaveCount << endl;
+    }
+
+    // NOTE: There is no further update the wavelength count
+    // after the third erasure.
 
     // Shift history left
     memmove(_histBuf, _histBuf + _frameLen,  
         sizeof(int16_t) * (_histBufLen - _frameLen));
-
-    _erasureCount++;
 
     // Populate output with interpolated data
     for (unsigned i = 0; i < _frameLen; i++)

@@ -59,7 +59,7 @@ void test_2() {
     float omega2 = 2 * 3.14156 * f2 / sampleRate;
     float phi = 0;
     float phi2 = 0;
-    unsigned frameCount = 5;
+    unsigned frameCount = 7;
     const unsigned frameLen = 80;
     int16_t frame[frameLen];
     int16_t outFrame[frameLen];
@@ -70,7 +70,7 @@ void test_2() {
             phi += omega;
             phi2 += omega2;
         }
-        if (j == 4) {
+        if (j == 4 || j == 5) {
             plc.badFrame(outFrame, frameLen);
         }
         else {
