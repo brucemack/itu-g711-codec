@@ -202,6 +202,8 @@ void Plc::_computePitchPeriod() {
         float energy = 0;
         float corr = 0;
         unsigned p0 = _pitchBufLen - corrLen - tapOffset; 
+        // This is the cross-correlation between the final 
+        // frame of audio and the shifted version.
         for (unsigned i = 0; i < corrLen; i += step) {
             int16_t s0 = _pitchBuf[p0 + i];
             int16_t s1 = _pitchBuf[p1 + i];
@@ -232,6 +234,8 @@ void Plc::_computePitchPeriod() {
         float energy = 0;
         float corr = 0;
         unsigned p0 = _pitchBufLen - corrLen - tapOffset; 
+        // This is the cross-correlation between the final 
+        // frame of audio and the shifted version.
         for (unsigned i = 0; i < corrLen; i += step) {
             int16_t s0 = _pitchBuf[p0 + i];
             int16_t s1 = _pitchBuf[p1 + i];

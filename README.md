@@ -43,15 +43,19 @@ The picture below illustrates the basic idea. The red trace is the
 input signal with a 20ms gap in the middle. The blue trace is
 the interpolated output. Notice that the blue trace matches
 the frequency and phase of the red trace even during the drop-out.
-Obviously this is a contrived example and things are more 
-complicated using real voice.
+
+![PLC1](docs/plc1.jpg)
 
 The blue trace lags the red trace by about 4ms. This is the
 inherent delay of the G.711 PLC algorithm.
 
-![PLC1](docs/plc1.jpg)
+Obviously this is a contrived example and things are more 
+complicated using real voice.
 
-This code is embedded-friendly. **There is no use of dynamic memory allocation anywhere in the code.**
+This code is embedded-friendly. **There is no use of dynamic memory allocation anywhere in the code.** 
+
+There is work in process to eliminate much of the floating-point
+math in this code.
 
 ## References
 
