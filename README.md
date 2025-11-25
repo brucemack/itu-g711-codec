@@ -92,7 +92,7 @@ int main(int,const char**) {
         int16_t inFrame[frameLen];
         int16_t outFrame[frameLen];
 
-        // Put the tone into the input frame
+        // Put a tone into the input frame from demonstration
         for (unsigned i = 0; i < frameLen; i++) {
             inFrame[i] = 0.5 * 32767.0f * std::cos(phi);
             phi += omega;
