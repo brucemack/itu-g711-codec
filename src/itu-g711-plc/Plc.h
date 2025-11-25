@@ -84,32 +84,39 @@ private:
      */
     int16_t _getSyntheticSample();
 
+    const float sampleRate = 8000;
     // The number of consecutive missing frames seen
     unsigned _erasureCount = 0;
-
-    // Used for creating the down ramp during synthesis.
+    // Used for creating the down ramp during synthesis. This
+    // is the current attenuation level:
     float _attenuationRamp = 1.0;
+    // This is the amount the attenuation should be adjusted
+    // on each sample:
     float _attenuationRampDelta = 0.0;
 
     // History is 48.75 ms
     static const unsigned _histBufLen = 390;
     int16_t _histBuf[_histBufLen];
 
+    // This is used during synthesis. Points to the current
+    // synthesized sample. This moves across the pitch 
+    // buffer in circular fashion.
     unsigned _pitchBufPtr = 0;
-    // These are set by the pitch determination function
+    // These are set by the pitch determination function.
+    // The dominant pitch wavelength in samples
     unsigned _pitchWavelen = 0;
+    // 1/4 of above (used a lot)
     unsigned _quarterPitchWavelen = 0;
     // The number of wavelengths in the synthesis. This depends 
     // on how many erasures have happened so far.
     unsigned _pitchWaveCount = 1;
-
-    const float sampleRate = 8000;
-    const float secondsPerSample = 1.0 / sampleRate;
-    // A 10ms block at 8kHz
+    // The number of samples in each 10ms block at 8kHz
     const unsigned _frameLen = 80;
-    // The period of a 66 Hz pitch
+    // The period of a 66 Hz pitch - the lowest fundamental
+    // we will track.
     static const unsigned pitchPeriodMax = 120; 
-    // The period of a 200 Hz pitch
+    // The period of a 200 Hz pitch - the highest fundamental
+    // we will track.
     const unsigned pitchPeriodMin = 40; 
     // The fixed delay in the system as a result of the lag
     // between input and output.
@@ -123,7 +130,7 @@ private:
     int16_t _pitchBuf[_pitchBufLen];
     // Holds the blend curve that is used to transition between 
     // discontinuous signals. This buffer goes from 0.0->1.0 so
-    // you may need subtract it from 1.0 to produce the ramp-down.
+    // you will need subtract it from 1.0 to produce the ramp-down.
     float _blendCoef[pitchPeriodMax / 4];
 };
 
