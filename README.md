@@ -37,6 +37,8 @@ sampled at 8 kHz with a 10ms (80 sample) frame size. This is
 easily used in 20ms frame systems by calling the goodFrame()
 and badFrame() functions twice for each 20ms audio frame.
 
+This would be a good fit for 8 kHz applications like EchoLink or [AllStarLink](https://www.allstarlink.org/).
+
 The picture below illustrates the basic idea. The red trace is the 
 input signal with a 20ms gap in the middle. The blue trace is
 the interpolated output. Notice that the blue trace matches
