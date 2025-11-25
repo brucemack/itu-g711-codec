@@ -35,6 +35,8 @@ public:
 
     /**
      * Call this each time a good frame of audio is received.
+     * Each call will consume frameLen samples and will produce
+     * another frameLen samples.
      * 
      * @param inFrame The input PCM data
      * @param outFrame The output PCM data
@@ -59,7 +61,7 @@ public:
     unsigned getPitchWavelength() const;
 
     /**
-     * Returns to initial state.
+     * Returns to the initial state.
      */
     void reset();
 
