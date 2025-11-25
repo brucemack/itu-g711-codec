@@ -38,14 +38,14 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
     // Shift history left
     memmove(_histBuf, _histBuf + _frameLen,  
         sizeof(int16_t) * (_histBufLen - _frameLen));
-    // Fill in the newest block
+    // Fill in the newest frame (far right)
     memcpy(_histBuf + _histBufLen - _frameLen, inFrame, 
         sizeof(int16_t) * _frameLen);
 
     // Is this a transition out of an erasure?
     if (_erasureCount > 0) {
         // For the lag period, keep flowing the synthetic data 
-        // (need to catch up to the new frame).
+        // (need to catch up to the start of the new frame).
         unsigned i = 0;
         for (; i < _outputLag; i++) {
             int16_t s = _getSyntheticSample();
@@ -58,9 +58,9 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         }
 
         // After the lag period we fade from the synthetic data
-        // over the real data. The length of this period is 1/4
+        // over to the real data. The length of this period is 1/4
         // wavelength for the first 10m erasure and 4ms (32 samples)
-        // for each subsequent erasure, not to exceed the length 
+        // for each additional erasure, not to exceed the length 
         // of the frame.
         unsigned fadeLen = _quarterPitchWavelen + 32 * (_erasureCount - 1);
         // Make sure the fade doesn't extend past this frame. And
@@ -75,8 +75,7 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         float blendCoef[50];
         for (unsigned j = 0; j < fadeLen; j++) {
             float frac = (float)j / (float)fadeLen;
-            // Set the phase so that we go through a half cycle in 
-            // a quarter pitch period.
+            // Set the phase so that we go through a half cycle 
             float phi = std::numbers::pi * frac;
             assert(j < blendCoefLen);
             blendCoef[j] = 0.5f - 0.5f * std::cos(phi);
@@ -104,7 +103,7 @@ void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame,
         _erasureCount = 0;
     }
     else {
-        // Populate output with lagged data
+        // Populate output with lagged input data
         for (unsigned i = 0; i < _frameLen; i++)
             outFrame[i] = _histBuf[_histBufLen - _frameLen - 
                 _outputLag + i];
@@ -188,8 +187,6 @@ void Plc::_computePitchPeriod() {
     // of the newest 20ms block in the pitch buffer.
     const unsigned p1 = _pitchBufLen - corrLen; 
 
-    float energy = 0;
-    float corr = 0;
     unsigned tapOffsetLow = pitchPeriodMin;
     unsigned tapOffsetHigh = pitchPeriodMax;
     float bestCorr = 0;
@@ -202,8 +199,8 @@ void Plc::_computePitchPeriod() {
     // from the longest pitch period and ends at the highest pitch period.
     for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
         tapOffset -= step) {
-        energy = 0;
-        corr = 0;
+        float energy = 0;
+        float corr = 0;
         unsigned p0 = _pitchBufLen - corrLen - tapOffset; 
         for (unsigned i = 0; i < corrLen; i += step) {
             int16_t s0 = _pitchBuf[p0 + i];
@@ -232,8 +229,8 @@ void Plc::_computePitchPeriod() {
 
     for (unsigned tapOffset = tapOffsetHigh; tapOffset >= tapOffsetLow; 
         tapOffset -= step) {
-        energy = 0;
-        corr = 0;
+        float energy = 0;
+        float corr = 0;
         unsigned p0 = _pitchBufLen - corrLen - tapOffset; 
         for (unsigned i = 0; i < corrLen; i += step) {
             int16_t s0 = _pitchBuf[p0 + i];
