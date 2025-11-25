@@ -83,9 +83,85 @@ void test_2() {
     }
 }
 
+/**
+ * Testing to make sure the tail of the transmission is 
+ * attenuated.
+ */
+static void test_3() {
+
+    Plc plc;
+
+    float sampleRate = 8000;
+    float f = 85;
+    float omega = 2 * 3.14156 * f / sampleRate;
+    float phi = 0;
+    unsigned frameCount = 12;
+    const unsigned frameLen = 80;
+
+    for (unsigned j = 0; j < frameCount; j++) {
+
+        int16_t inFrame[frameLen];
+        int16_t outFrame[frameLen];
+
+        // Put the tone into the input frame
+        for (unsigned i = 0; i < frameLen; i++) {
+            inFrame[i] = 0.5 * 32767.0f * std::cos(phi);
+            phi += omega;
+        }
+
+        // Create a few erasures to demonstrate interpolation
+        if (j > 4) {
+            // We do this for charting purposes only
+            for (unsigned i = 0; i < frameLen; i++)
+                inFrame[i] = 0;
+            plc.badFrame(outFrame, frameLen);
+        }
+        // Otherwise feed good audio 
+        else {
+            plc.goodFrame(inFrame, outFrame, frameLen);
+        }
+        // For display
+        for (unsigned i = 0; i < frameLen; i++) 
+            cout << outFrame[i] << "\t" << inFrame[i] << endl;
+    }
+}
+
+static void test_4() {
+
+    Plc plc;
+
+    float sampleRate = 8000;
+    unsigned frameCount = 8;
+    const unsigned frameLen = 80;
+
+    for (unsigned j = 0; j < frameCount; j++) {
+
+        int16_t inFrame[frameLen];
+        int16_t outFrame[frameLen];
+
+        // Put the tone into the input frame
+        for (unsigned i = 0; i < frameLen; i++)
+            inFrame[i] = 0;
+
+        // Create a few erasures to demonstrate interpolation
+        if (j > 4) {
+            plc.badFrame(outFrame, frameLen);
+        }
+        // Otherwise feed good audio 
+        else {
+            plc.goodFrame(inFrame, outFrame, frameLen);
+        }
+        // For display
+        for (unsigned i = 0; i < frameLen; i++) 
+            cout << outFrame[i] << "\t" << inFrame[i] << endl;
+    }
+}
+
 int main(int,const char**) {
-    test_1();
-    test_2();
+    //test_1();
+    //test_2();
+    //test_3();
+    test_4();
     return 0;
 }
 

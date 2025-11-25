@@ -52,6 +52,12 @@ inherent delay of the G.711 PLC algorithm.
 Obviously this is a contrived example and things are more 
 complicated using real voice.
 
+This example shows what the synthesized output looks like following
+the final good frame. Notice the attenuation ramp that fades out
+the final audio.
+
+![PLC2](docs/plc2.jpg)
+
 This code is embedded-friendly. **There is no use of dynamic memory allocation anywhere in the code.** 
 
 There is work in process to eliminate much of the floating-point
