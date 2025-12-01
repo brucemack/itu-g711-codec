@@ -76,8 +76,8 @@ private:
     // ares. They have been scaled assuming a maximum sample rate of 48K.
     //
     // IMPORTANT: Must be evenly divisible by 4.
-    static const MAX_PITCH_PERIOD_LEN = 120 * 6;
-    static const MAX_HIST_BUF_LEN = MAX_PITCH_PERIOD_LEN * 3.25;
+    static const unsigned MAX_PITCH_PERIOD_LEN = 120 * 6;
+    static const unsigned MAX_HIST_BUF_LEN = MAX_PITCH_PERIOD_LEN * 3.25;
 
     /**
      * Should be called immediately when an erasure (missed block)
