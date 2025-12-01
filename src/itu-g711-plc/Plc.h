@@ -26,7 +26,7 @@ namespace kc1fsz {
  * method. 
  * 
  * At the present time this implementation assumes 16 bit signed
- * PCM, 8kHz sample rate, and 10ms frame size.
+ * PCM, and 10ms frame size.  Maximum sample rate is 48K.
  */
 class Plc {
 public:
@@ -34,25 +34,30 @@ public:
     Plc();
 
     /**
-     * Call this each time a good frame of audio is received.
+     * Changes the sample rate and causes a reset.
+     * @param Audio sample rate in Hertz
+     */
+    void setSampleRate(unsigned hz);
+
+    /**
+     * Call this each time a good 10m frame of audio is received.
      * Each call will consume frameLen samples and will produce
      * another frameLen samples.
      * 
      * @param inFrame The input PCM data
      * @param outFrame The output PCM data
-     * @param frameLen Must be 80 at the moment. 
+     * @param frameLen Depends on the sample rate, but must be 10ms of data
      */
     void goodFrame(const int16_t* inFrame, int16_t* outFrame, 
         unsigned frameLen);
 
     /**
-     * Call this each time a frame is missed. Output will still
+     * Call this each time a 10ms frame is missed. Output will still
      * be provided using the relevant PLC algorithm.
      * 
-     * @param frameLen Must be 80 at the moment. 
+     * @param frameLen Depends on the sample rate, but must be 10ms of data
      */
-    void badFrame(int16_t* outFrame, 
-        unsigned frameLen);
+    void badFrame(int16_t* outFrame, unsigned frameLen);
 
     /**
      * Diagnostic, returns current pitch wavelength as estimated
@@ -66,6 +71,13 @@ public:
     void reset();
 
 private:
+
+    // These constants are used to pre-allocate the largest possible work 
+    // ares. They have been scaled assuming a maximum sample rate of 48K.
+    //
+    // IMPORTANT: Must be evenly divisible by 4.
+    static const MAX_PITCH_PERIOD_LEN = 120 * 6;
+    static const MAX_HIST_BUF_LEN = MAX_PITCH_PERIOD_LEN * 3.25;
 
     /**
      * Should be called immediately when an erasure (missed block)
@@ -98,7 +110,7 @@ private:
     // (The lowest frequency is 66 Hz, which is 120 samples at 8kHz. 
     // 120 * 3.25=390)
     static const unsigned _histBufLen = 390;
-    int16_t _histBuf[_histBufLen];
+    int16_t _histBuf[MAX_HIST_BUF_LEN];
 
     // This is used during synthesis. Points to the current
     // synthesized sample. This moves across the pitch 
@@ -129,11 +141,11 @@ private:
     // The pitch buffer is long enough for three complete cycles
     // at the lowest pitch frequency.
     static const unsigned _pitchBufLen = 390;
-    int16_t _pitchBuf[_pitchBufLen];
+    int16_t _pitchBuf[MAX_HIST_BUF_LEN];
     // Holds the blend curve that is used to transition between 
     // discontinuous signals. This buffer goes from 0.0->1.0 so
     // you will need subtract it from 1.0 to produce the ramp-down.
-    float _blendCoef[pitchPeriodMax / 4];
+    float _blendCoef[MAX_PITCH_PERIOD_LEN / 4];
 };
 
 }

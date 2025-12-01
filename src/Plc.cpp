@@ -32,6 +32,10 @@ Plc::Plc() {
     reset();
 }
 
+void Plc::setSampleRate(unsigned hz) {
+    assert(hz == 8000 || hz == 16000 || hz == 48000);
+}
+
 void Plc::goodFrame(const int16_t* inFrame, int16_t* outFrame, 
     unsigned frameLen) {
 
