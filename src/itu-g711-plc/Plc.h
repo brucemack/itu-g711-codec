@@ -94,7 +94,9 @@ private:
     // on each sample:
     float _attenuationRampDelta = 0.0;
 
-    // History is 48.75 ms
+    // History is 48.75 ms. This is 3.25 maximum pitch periods.
+    // (The lowest frequency is 66 Hz, which is 120 samples at 8kHz. 
+    // 120 * 3.25=390)
     static const unsigned _histBufLen = 390;
     int16_t _histBuf[_histBufLen];
 
